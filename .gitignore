@@ -1,0 +1,16 @@
+# XSIM / Vivado simulation artifacts
+xsim.dir/
+*.wdb
+*.jou
+*.log
+*.pb
+*.str
+webtalk*
+.Xil/
+*_snap.*
+xsim_*.backup.jou
+xsim_*.backup.log
+
+# Coverage
+*.ucdb
+xsim.covdb/
