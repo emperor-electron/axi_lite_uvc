@@ -31,6 +31,11 @@ Only XSIM (Vivado 2023.2) has been used so far; see
 [Simulator notes](#simulator-notes) for the three XSIM bugs this code works
 around.
 
+> **Full documentation is in [`docs/`](docs).** Start at
+> [docs/README.md](docs/README.md) for the index, or go straight to
+> [Getting started](docs/getting-started.md) to wire the UVC into your own
+> testbench. The rest of this file is a condensed overview of the same material.
+
 ## Using it in your project
 
 The fastest way in is [`example/`](example) — a complete, runnable testbench
