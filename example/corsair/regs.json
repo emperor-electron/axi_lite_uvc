@@ -1,0 +1,250 @@
+{
+  "regmap": [
+    {
+      "name": "ID",
+      "description": "Identification. Constant, so a correct read proves the AXI4-Lite path reaches this block.",
+      "address": 0,
+      "bitfields": [
+        {
+          "name": "MAGIC",
+          "description": "Always 0xA711.",
+          "reset": 42769,
+          "width": 16,
+          "lsb": 16,
+          "access": "ro",
+          "hardware": "f",
+          "enums": []
+        },
+        {
+          "name": "VERSION",
+          "description": "Map version.",
+          "reset": 1,
+          "width": 16,
+          "lsb": 0,
+          "access": "ro",
+          "hardware": "f",
+          "enums": []
+        }
+      ]
+    },
+    {
+      "name": "CTRL",
+      "description": "Main control. Deliberately mixes a byte-aligned field, an unaligned field and an enumerated field, so every field-write strategy the UVC can pick is exercised by one register.",
+      "address": 4,
+      "bitfields": [
+        {
+          "name": "ENABLE",
+          "description": "Enable the block.",
+          "reset": 0,
+          "width": 1,
+          "lsb": 0,
+          "access": "rw",
+          "hardware": "o",
+          "enums": []
+        },
+        {
+          "name": "MODE",
+          "description": "Operating mode.",
+          "reset": 0,
+          "width": 2,
+          "lsb": 1,
+          "access": "rw",
+          "hardware": "o",
+          "enums": [
+            {
+              "name": "IDLE",
+              "description": "Do nothing.",
+              "value": 0
+            },
+            {
+              "name": "STREAM",
+              "description": "Continuous streaming.",
+              "value": 1
+            },
+            {
+              "name": "SINGLE",
+              "description": "One frame then stop.",
+              "value": 2
+            },
+            {
+              "name": "LOOPBACK",
+              "description": "Echo input to output.",
+              "value": 3
+            }
+          ]
+        },
+        {
+          "name": "GAIN",
+          "description": "Byte-aligned on purpose: a write to this field alone needs no read.",
+          "reset": 128,
+          "width": 8,
+          "lsb": 8,
+          "access": "rw",
+          "hardware": "o",
+          "enums": []
+        },
+        {
+          "name": "THRESH",
+          "description": "Straddles byte lane 2 and 3, so a write to this field alone needs a read-modify-write.",
+          "reset": 0,
+          "width": 12,
+          "lsb": 16,
+          "access": "rw",
+          "hardware": "o",
+          "enums": []
+        }
+      ]
+    },
+    {
+      "name": "STATUS",
+      "description": "Read-only status driven by hardware.",
+      "address": 8,
+      "bitfields": [
+        {
+          "name": "BUSY",
+          "description": "Block is busy.",
+          "reset": 0,
+          "width": 1,
+          "lsb": 0,
+          "access": "ro",
+          "hardware": "i",
+          "enums": []
+        },
+        {
+          "name": "ERRCODE",
+          "description": "Last error.",
+          "reset": 0,
+          "width": 4,
+          "lsb": 4,
+          "access": "ro",
+          "hardware": "i",
+          "enums": [
+            {
+              "name": "NONE",
+              "description": "No error.",
+              "value": 0
+            },
+            {
+              "name": "OVERFLOW",
+              "description": "Input overflowed.",
+              "value": 1
+            },
+            {
+              "name": "UNDERFLOW",
+              "description": "Input underflowed.",
+              "value": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "IRQ",
+      "description": "Write-1-to-clear interrupt flags. A read-modify-write here would clear flags nobody asked to clear, which is the hazard the UVC's field_write() avoids.",
+      "address": 12,
+      "bitfields": [
+        {
+          "name": "DONE",
+          "description": "Operation completed.",
+          "reset": 0,
+          "width": 1,
+          "lsb": 0,
+          "access": "rw1c",
+          "hardware": "s",
+          "enums": []
+        },
+        {
+          "name": "ERROR",
+          "description": "Error occurred.",
+          "reset": 0,
+          "width": 1,
+          "lsb": 1,
+          "access": "rw1c",
+          "hardware": "s",
+          "enums": []
+        }
+      ]
+    },
+    {
+      "name": "CMD",
+      "description": "Write-only command. Cannot be read back, so a field write here cannot read-modify-write and must use the shadow value.",
+      "address": 16,
+      "bitfields": [
+        {
+          "name": "OPCODE",
+          "description": "Command opcode.",
+          "reset": 0,
+          "width": 8,
+          "lsb": 0,
+          "access": "wo",
+          "hardware": "o",
+          "enums": []
+        },
+        {
+          "name": "ARG",
+          "description": "Command argument.",
+          "reset": 0,
+          "width": 16,
+          "lsb": 8,
+          "access": "wo",
+          "hardware": "o",
+          "enums": []
+        },
+        {
+          "name": "FLAG",
+          "description": "Single bit at the top of the word. Write-only and not byte-aligned, so writing it alone can only be done from the shadow value.",
+          "reset": 0,
+          "width": 1,
+          "lsb": 24,
+          "access": "wo",
+          "hardware": "o",
+          "enums": []
+        }
+      ]
+    },
+    {
+      "name": "SCRATCH",
+      "description": "Plain read/write word, for a whole-register access that needs no field handling at all.",
+      "address": 20,
+      "bitfields": [
+        {
+          "name": "VALUE",
+          "description": "Anything you like.",
+          "reset": 0,
+          "width": 32,
+          "lsb": 0,
+          "access": "rw",
+          "hardware": "n",
+          "enums": []
+        }
+      ]
+    },
+    {
+      "name": "EVENT",
+      "description": "Event counter that clears when read. Reading it to service one field is destructive, so the UVC will not read-modify-write this register.",
+      "address": 24,
+      "bitfields": [
+        {
+          "name": "COUNT",
+          "description": "Events since the last read. Cleared by the read itself.",
+          "reset": 0,
+          "width": 8,
+          "lsb": 0,
+          "access": "roc",
+          "hardware": "i",
+          "enums": []
+        },
+        {
+          "name": "ARM",
+          "description": "Plain control bit sharing the register with a read-clear field.",
+          "reset": 0,
+          "width": 1,
+          "lsb": 16,
+          "access": "rw",
+          "hardware": "o",
+          "enums": []
+        }
+      ]
+    }
+  ]
+}

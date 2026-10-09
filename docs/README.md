@@ -16,6 +16,11 @@ The interface is one file that is both the UVC's virtual interface and a
 synthesizable interface you can instantiate inside your design — there is no
 second "verification interface" to keep in step.
 
+It also drives a DUT **by register and field name**, with the map generated from
+the [Corsair](https://github.com/esynr3z/corsair) output you already have — so a
+field write picks a strategy that is safe for that field's access mode instead of
+read-modify-writing a write-1-to-clear register and losing an interrupt.
+
 ## Start here
 
 ```bash
@@ -33,6 +38,7 @@ Then read, in order:
 | **[Features](features.md)** | What the UVC actually gives you, and why each piece is shaped the way it is. |
 | **[Configuration](configuration.md)** | `axi_lite_config` field by field — role, geometry, address window, pacing, backpressure, the slave model. |
 | **[Stimulus](stimulus.md)** | The transaction, the sequence library, and how to write sequences of your own. |
+| **[Register maps](register-maps.md)** | Driving a DUT by register and field name, and generating the map from Corsair. |
 | **[Checks and coverage](checks-and-coverage.md)** | The protocol assertions, the monitor's two analysis ports, and the functional coverage model. |
 | **[Troubleshooting](troubleshooting.md)** | Every failure mode with a non-obvious cause, including the XSIM miscompilations this code works around. |
 
@@ -70,6 +76,23 @@ assert (random_sequence.randomize() with { num_transactions == 40; });
 random_sequence.start(env.master_agent.sequencer);
 ```
 
+**Driving a register map by name:**
+
+```systemverilog
+class my_bringup_seq extends axi_lite_reg_seq;   // instead of axi_lite_base_seq
+  virtual task body();
+    check_all_resets();                             // every register vs. its reset value
+    field_check("ID", "MAGIC", 16'hA711);
+    field_write_enum("CTRL", "MODE", "STREAM", resp);
+    field_write("IRQ", "DONE", 1'b1, resp);         // clears DONE, leaves ERROR set
+  endtask
+endclass
+```
+
+See **[Register maps](register-maps.md)**, and
+[`example/corsair/`](../example/corsair) for a runnable version driving a DUT
+Corsair generated from the same register map.
+
 ## Pulling it into your project
 
 The whole component is two files, and the filelist that names them:
@@ -88,6 +111,8 @@ on nothing but UVM.
 | --- | --- |
 | [`src/`](../src) | The UVC. `axi_lite_if.sv` + `axi_lite_pkg.sv`, pulled in by `axi_lite_uvc.f`. |
 | [`example/`](../example) | A worked integration: a register-file DUT, an env, a scoreboard and five tests, all heavily commented. Copy this. |
+| [`example/corsair/`](../example/corsair) | The register-map layer end to end: Corsair generates the DUT *and* the UVC's map from one `regs.json`, and seven tests drive it by name. |
+| [`tools/`](../tools) | `corsair_uvc_gen.py`, which turns a Corsair register map into an `axi_lite_reg_model`. |
 | [`tb/`](../tb) | The UVC's own self-test: master and slave agents facing each other across a register slice, at five different port geometries. |
 | [`docs/`](.) | You are here. |
 
@@ -95,5 +120,6 @@ on nothing but UVM.
 
 Verified on XSIM (Vivado 2023.2) only, and `xc7z045` synthesis for the
 interface. The self-test regression is 8 tests across 5 port geometries, the
-example is 5 tests, and the protocol checker's negative test drives 17 scenarios
-— 13 deliberate violations that must be caught and 4 that must stay quiet. See [Running the tests](checks-and-coverage.md#running-the-tests).
+address-based example is 5 tests, the Corsair register-map example is 7, and the
+protocol checker's negative test drives 17 scenarios — 13 deliberate violations
+that must be caught and 4 that must stay quiet. See [Running the tests](checks-and-coverage.md#running-the-tests).

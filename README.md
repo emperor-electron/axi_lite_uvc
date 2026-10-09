@@ -26,10 +26,18 @@ width and either legal data width without a single compile-time definition.
   and configuration API sit behind `` `ifdef AXI_LITE_IF_SIM ``, so the same
   `axi_lite_if.sv` is both the UVC's virtual interface and an interface you can
   instantiate in RTL.
+- **Register maps by name, generated from Corsair** — `field_write("CTRL",
+  "GAIN", 8'h5A, resp)` instead of an address, a shift and a mask, with the map
+  generated from the `regs.json` you already have. A field write picks a
+  strategy that is safe for that field's access mode, so clearing one
+  write-1-to-clear flag does not clear its neighbour. See
+  [docs/register-maps.md](docs/register-maps.md).
 
 Only XSIM (Vivado 2023.2) has been used so far; see
-[Simulator notes](#simulator-notes) for the three XSIM bugs this code works
-around.
+[Simulator notes](#simulator-notes) for the three XSIM bugs the core works
+around, and
+[docs/troubleshooting.md](docs/troubleshooting.md#xsim-20232-specifics) for all
+six.
 
 > **Full documentation is in [`docs/`](docs).** Start at
 > [docs/README.md](docs/README.md) for the index, or go straight to

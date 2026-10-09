@@ -72,6 +72,13 @@ class axi_lite_config extends uvm_object;
   // Share one handle between agents to give them a common memory.
   axi_lite_mem mem;
 
+  // ---- The DUT's register map, for tests that drive it by name rather
+  // than by address. A sequence extending axi_lite_reg_seq picks this up
+  // through its sequencer, so a test sets it once here and every named
+  // access in every sequence resolves against it. Left null, only
+  // address-based access is available. See docs/register-maps.md.
+  axi_lite_reg_model reg_model;
+
   // ---- Backpressure, per channel. Left empty, a channel gets an
   // AXI_LITE_READY_ALWAYS policy: a UVC that has not been told to
   // throttle should not silently start throttling.
@@ -246,6 +253,7 @@ function void axi_lite_config::do_copy(uvm_object rhs);
   min_resp_delay         = rhs_.min_resp_delay;
   max_resp_delay         = rhs_.max_resp_delay;
   mem                    = rhs_.mem;
+  reg_model              = rhs_.reg_model;
   m_ready_policy         = rhs_.m_ready_policy;
   protocol_checks_enable = rhs_.protocol_checks_enable;
   check_addr_alignment   = rhs_.check_addr_alignment;

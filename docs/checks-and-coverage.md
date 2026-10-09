@@ -232,6 +232,30 @@ make regress                          # all five
 | `example_sweep_test` | walk every register in the map |
 | `example_decerr_test` | half the traffic aimed outside the aperture |
 
+### The Corsair register-map example
+
+```bash
+cd example/corsair
+make                              # bring-up: reset values, ID, scratch
+make TEST=corsair_example_irq_test
+make regress                      # all seven
+make regs                         # re-run Corsair and the model generator
+```
+
+| Test | Exercises |
+| --- | --- |
+| `corsair_example_base_test` | the map loads; reset values; named field access |
+| `corsair_example_strategy_test` | each field-write strategy, and sibling survival |
+| `corsair_example_irq_test` | the write-1-to-clear hazard |
+| `corsair_example_cmd_test` | a write-only register written field by field |
+| `corsair_example_enum_test` | enumerated values; four fields in one bus write |
+| `corsair_example_diag_test` | seven mistyped accesses, each reported once |
+| `corsair_example_macro_test` | the generated map and the macro-built map agree |
+
+The DUT is a register block **Corsair generated from the same `regs.json`** the
+UVC's map was generated from, so the design and the testbench's idea of it cannot
+drift apart. See [Register maps](register-maps.md).
+
 ### Reading the result
 
 XSIM exits 0 even after a `UVM_FATAL` — the test called `$finish`, it did not
@@ -257,6 +281,8 @@ that reports failures and CI that reports green.
   assertions watch the wires, not one side of them.
 - The assertions themselves fire when they should and stay quiet when they
   should, on 17 scenarios.
+- The register-map layer picks a safe write strategy for every access mode, and
+  the diagnostics for a mistyped name fire on all 7 negative cases.
 - Five port geometries elaborated into one snapshot and were driven by one
   unparameterized sequence library.
 - Every configured READY model produced the duty cycle it promised, measured by

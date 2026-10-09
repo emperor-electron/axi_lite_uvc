@@ -207,7 +207,7 @@ bucket 0.
 
 Only XSIM (Vivado 2023.2) has compiled this code. It miscompiles several pieces
 of legal SystemVerilog in ways that produce no error message. If something here
-behaves impossibly, suspect these before suspecting the code — all four are
+behaves impossibly, suspect these before suspecting the code — all six are
 commented at their source.
 
 | Construct | What XSIM does | Workaround in this repo |
@@ -216,10 +216,81 @@ commented at their source.
 | A conditional expression yielding an enum inside `randomize() with { }` | Evaluated wrongly — solved the read case to `WRITE` and called the write case unsatisfiable | Choose in procedural code into a variable of the enum's own type, then compare against it |
 | Masking a wide `rand` field by constraint | `(x & ~mask) == 0` declared unsatisfiable; `(x >> width) == 0` solves but returns 0 on **every** draw | Trim in `post_randomize()` |
 | Property formal arguments | Compile, then are **silently ignored** — assertions that look present and check nothing | One property per signal, written out longhand |
+| A `string` formal passed a class member | **Aliased to the caller's member, not copied.** A function that assigns the formal to a local and then grows that local writes *through* to the caller and destroys the member | Never assign a `string` formal to a local that is later modified; build the result separately and concatenate once (`axi_lite_pad` in `axi_lite_reg_model.sv`) |
+| The `-` (left-justify) flag in `$display`/`$sformatf` | **Ignored entirely**, for `%s` and `%d` alike — everything is right-justified, so a column built with `%-12s` comes out jumbled | Pad explicitly (`axi_lite_pad`) |
 
 The masking one is worth dwelling on: neither failure appears on a 64-bit bus,
 where the mask is all ones and the constraint is vacuous. It would have gone
 unnoticed on the widest port while quietly breaking every narrow one.
+
+The string-aliasing one is the most dangerous of the five, because the corrupted
+data is the *caller's* and the function looks read-only. It was found when a
+register map printed all of its own register names correctly and then could not
+find any of them — printing the map had destroyed it. A 20-line reproducer:
+
+```systemverilog
+function automatic string pad(string s, int unsigned width);
+  string out = s;
+  while (out.len() < width) out = {out, " "};   // writes through to the caller
+  return out;
+endfunction
+
+class c; string nm = "ID"; endclass
+...
+$display("[%s]", pad(obj.nm, 6));   // prints "[ID    ]" -- correct
+$display("'%s'", obj.nm);           // prints "' '"      -- member destroyed
+```
+
+Assigning the formal to a local first (`string out; out = s;`) does not help.
+Building the padding in a separate string and concatenating once at the return
+does, and so does going through `$sformatf`.
+
+## A register or field name is not found
+
+```
+[REGMODEL] map 'my_periph' has no register 'CTRLL'. Did you mean 'CTRL'?
+[REGMODEL] register 'CTRL' has no field 'GAINN'. It has: ENABLE, MODE, GAIN, THRESH
+```
+
+A string-keyed API resolves names at run time, so a typo cannot be a compile
+error the way a parameter name would be. The messages are built to make that
+cheap: an unknown register names the closest match, an unknown field lists the
+fields that exist.
+
+If the name looks right, check that the map is the one you think it is —
+`reg_model.print_map(UVM_LOW)` dumps every register, field, access mode and reset
+value as the UVC understands them.
+
+## `NOREGMODEL` — no register model available
+
+```
+UVM_FATAL [NOREGMODEL] no axi_lite_reg_model available. Set agent_config.reg_model, ...
+```
+
+A sequence extending `axi_lite_reg_seq` was started on an agent whose config has
+no `reg_model`. Either set `master_config.reg_model` in the test's `build_phase`,
+or assign the sequence's own `reg_model` before starting it — the latter is how
+you point one sequence at a second peripheral.
+
+## A field write disturbed a field it was not asked to touch
+
+Check `last_strategy` on the sequence after the write. The four strategies and
+when each is chosen are in
+[Register maps](register-maps.md#how-a-field-write-is-carried-out).
+
+The usual cause is a `SHADOW` write on a register whose shadow is stale:
+
+- **The DUT was reset and the shadow was not.** Call
+  `reg_model.reset_shadows()` from your reset handling. The shadow is the
+  testbench's belief about the register, and a reset invalidates it.
+- **The hardware changes the register behind your back.** A shadow is exact only
+  for a register that this layer alone writes. For one the hardware also drives,
+  prefer whole-register writes, or a field that fills whole byte lanes so the
+  write goes out with strobes and needs no shadow at all.
+
+If the strategy was `RMW` and a sibling was disturbed anyway, the map is probably
+wrong about an access mode — a field that is really `rw1c` but declared `rw` will
+be read-modify-written and cleared.
 
 ## Synthesis rejects the interface
 

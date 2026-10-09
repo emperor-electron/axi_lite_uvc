@@ -289,4 +289,25 @@ wait fork;
 The self-test's `axi_lite_multiwidth_test` does exactly this across five
 different port geometries in one run.
 
+## If your DUT has a register map
+
+Everything above addresses the DUT by address. If it has a register map —
+especially a generated one — extend `axi_lite_reg_seq` instead of
+`axi_lite_base_seq` and address it by name:
+
+```systemverilog
+class my_seq extends axi_lite_reg_seq;
+  virtual task body();
+    axi_lite_resp_e resp;
+    field_write("CTRL", "GAIN", 8'h5A, resp);        // address, shift and mask from the map
+    field_write_enum("CTRL", "MODE", "STREAM", resp);
+  endtask
+endclass
+```
+
+`axi_lite_reg_seq` extends `axi_lite_base_seq`, so `write()`, `read()`, `send()`
+and `blocking` are all still available for anything the named API does not cover.
+
+See **[Register maps](register-maps.md)**.
+
 Next: **[Checks and coverage](checks-and-coverage.md)**.

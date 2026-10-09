@@ -31,6 +31,11 @@ package axi_lite_pkg;
   // What a slave agent answers with: storage, response regions, hooks.
   `include "axi_lite_mem.sv"
 
+  // The DUT's register map by name: registers, bit fields, access modes
+  // and enumerated values. Included before the config because the config
+  // carries a handle to one.
+  `include "axi_lite_reg_model.sv"
+
   // Per-agent configuration: role, geometry, address window, pacing,
   // backpressure, the memory model.
   `include "axi_lite_config.sv"
@@ -49,5 +54,8 @@ package axi_lite_pkg;
 
   // Stimulus.
   `include "axi_lite_seq_lib.sv"
+
+  // Named register and bit-field access, built on the sequence library.
+  `include "axi_lite_reg_seq.sv"
 
 endpackage : axi_lite_pkg

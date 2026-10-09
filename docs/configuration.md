@@ -121,6 +121,23 @@ Left null, `mem` is filled in with a plain zero-filled `axi_lite_mem` by the
 slave driver. Share one handle between two slave agents to give them a common
 memory.
 
+## The DUT's register map
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `reg_model` | `axi_lite_reg_model` | `null` |
+
+```systemverilog
+cfg.reg_model = my_periph_reg_model::type_id::create("reg_model");
+```
+
+Attaching a map is what lets a sequence address the DUT by register and field
+name instead of by address. Every sequence extending `axi_lite_reg_seq` picks it
+up through its sequencer, so a test sets it once here.
+
+Left null, only address-based access is available — the rest of the UVC does not
+need it. Full documentation: **[Register maps](register-maps.md)**.
+
 ## Backpressure, per channel
 
 ```systemverilog

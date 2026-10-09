@@ -197,6 +197,48 @@ cd tb && make check-protocol
 An assertion nobody has ever seen fail is a claim, not a check. Full list:
 [Checks and coverage](checks-and-coverage.md).
 
+## Register maps by name, generated from Corsair
+
+A DUT with a register map can be driven by name rather than by address:
+
+```systemverilog
+field_write_enum("CTRL", "MODE", "STREAM", resp);
+field_check("STATUS", "ERRCODE", CSR_STATUS_ERRCODE_NONE);
+```
+
+`axi_lite_reg_model` holds registers, fields, access modes and enumerated values;
+`axi_lite_reg_seq` adds the named access tasks on top of the ordinary sequence
+library. Both are unparameterized, so one map works against a 32-bit link and a
+64-bit one.
+
+The map is generated from the [Corsair](https://github.com/esynr3z/corsair)
+register map you already have — `tools/corsair_uvc_gen.py` reads the same
+`regs.json` Corsair reads — or built from Corsair's exported SystemVerilog
+parameters through the macros in `src/axi_lite_corsair.svh`.
+
+### The part that is not syntax sugar
+
+Writing one field of a register by reading it, substituting and writing it back
+is wrong on most of the access modes a real map contains, and wrong in a way that
+succeeds. Hardware raises `IRQ.DONE` and `IRQ.ERROR`; a test clears `DONE`; a
+read-modify-write reads `0b11`, writes `0b11` back, and clears both. The write is
+accepted, the response is `OKAY`, and an interrupt is gone.
+
+Because the map carries the access mode, `field_write()` picks between four
+strategies:
+
+| Strategy | When | Cost |
+| --- | --- | --- |
+| `MODAL` | `rw1c`/`rw1s`/`rw1t`/`wosc` — a written 0 means "leave alone" | 1 write |
+| `STROBE` | the field exactly fills whole byte lanes | 1 write |
+| `RMW` | readable, no read side effects, nothing modal | 1 read + 1 write |
+| `SHADOW` | write-only and unaligned, or reading would change the DUT | 1 write |
+
+`last_strategy` reports which was used, so "this write cost one bus access and no
+read" is a property a test can assert on rather than hope for.
+
+Full documentation: **[Register maps](register-maps.md)**.
+
 ## Pipelining, and the ability to turn it off
 
 `max_outstanding` controls how many transactions the master driver may have in
